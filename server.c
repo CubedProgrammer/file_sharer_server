@@ -86,13 +86,26 @@ void *client_handler(void *arg)
 {
     struct timeval tv, *tvp = &tv;
     fd_set fds, *fdsp = &fds;
-    int ready;
+    int ready, big;
     struct ll_node *node;
     while(rl_client_tail != NULL)
     {
+        big = 0;
         FD_ZERO(fdsp);
         for(node = rl_client_head; node != NULL; node = node->ne)
+        {
+            big = big < node->val ? node->val : big;
             FD_SET(node->val, fdsp);
+        }
+        tv.tv_usec = 0;
+        tv.tv_sec = 1;
+        ready = select(big + 1, fdsp, NULL, NULL, tvp);
+        for(node = rl_client_head; node != NULL; node = node->ne)
+        {
+            if(FD_ISSET(node->val, fdsp))
+            {
+            }
+        }
     }
     return NULL;
 }
