@@ -8,6 +8,8 @@
 #define QUIT 31
 #define SENDFILE 37
 #define CLOSEROOM 41
+#define GETOBJ(filedes, var)read(filedes, &var, sizeof var)
+#define PUTOBJ(filedes, var)write(filedes, &var, sizeof var)
 
 typedef char unsigned fs_msg_t;
 void get_msg_name(fs_msg_t msg, char *buf);

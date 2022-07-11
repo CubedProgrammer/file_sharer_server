@@ -9,6 +9,8 @@
 #include<sys/socket.h>
 #include<time.h>
 #include<unistd.h>
+#include"logging.h"
+#include"msg.h"
 #include"queue.h"
 #include"rand.h"
 #include"room.h"
@@ -86,7 +88,9 @@ void *client_handler(void *arg)
 {
     struct timeval tv, *tvp = &tv;
     fd_set fds, *fdsp = &fds;
-    int ready, big;
+    int ready, big, sock;
+    char msgnam[13];
+    fs_msg_t msgt;
     struct ll_node *node;
     while(rl_client_tail != NULL)
     {
@@ -104,6 +108,19 @@ void *client_handler(void *arg)
         {
             if(FD_ISSET(node->val, fdsp))
             {
+                sock = node->val;
+                GETOBJ(sock, msgt);
+                switch(msgt)
+                {
+                    case UPLOADER:
+                        break;
+                    case RECEIPIENT:
+                        break;
+                    default:
+                        get_msg_name(msgt, msgnam);
+                        logfmt("Invalid message %s, should be UPLOADER or RECEIPIENT.\n", msgnam);
+                        log_endmsg();
+                }
             }
         }
     }
@@ -111,4 +128,6 @@ void *client_handler(void *arg)
 }
 void sigpipe(int x)
 {
+    logstr("SIGPIPE happened");
+    log_endmsg();
 }
