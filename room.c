@@ -1,8 +1,35 @@
 #include<stdlib.h>
 #include<string.h>
+#include<sys/select.h>
+#include<time.h>
 #include"room.h"
 struct room_htable fs_all_rooms;
-void *process_room(void *arg);
+void *process_room(void *arg)
+{
+    struct share_room *roomp = arg;
+    struct timeval tv, *tvp = &tv;
+    fd_set fds, *fdsp = &fds;
+    int big, fd;
+    int ready;
+    char fini = 0;
+    while(!fini)
+    {
+        big = roomp->uploader;
+        FD_ZERO(fdsp);
+        FD_SET(big, fdsp);
+        for(size_t i = 0; i < roomp->rccnt; ++i)
+        {
+            fd = roomp->receivers[i];
+            FD_SET(fd, fdsp);
+            big = fd > big ? fd : big;
+        }
+        tv.tv_usec = 0;
+        tv.tv_usec = 5;
+        ready = select(big + 1, fdsp, NULL, NULL, tvp);
+    }
+    return NULL;
+}
+
 int init_rmtable(void)
 {
     int succ = 0;
@@ -82,6 +109,21 @@ void remove_room(uint64_t num)
     free(*rmp);
 }
 
+void remove_receipient(struct share_room *room, int rec)
+{
+    char found = 0;
+    for(size_t i = 0; i < room->rccnt; ++i)
+    {
+        if(room->receivers[i] == rec)
+        {
+            found = 1;
+            --room->rccnt;
+        }
+        if(found)
+            room->receivers[i] = room->receivers[i + 1];
+    }
+}
+
 int join_room(struct share_room *room, int rec)
 {
     int succ = 0;
@@ -143,4 +185,9 @@ void clear_room(struct share_room *room)
 {
     free(room->receivers);
     room->num = 0;
+}
+
+size_t room_cnt(void)
+{
+    return fs_all_rooms.rcnt;
 }

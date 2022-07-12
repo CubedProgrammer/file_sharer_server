@@ -89,6 +89,10 @@ void *client_handler(void *arg)
     struct timeval tv, *tvp = &tv;
     fd_set fds, *fdsp = &fds;
     int ready, big, sock;
+    int succ;
+    uint64_t rnum;
+    uint32_t rnumpart;
+    struct share_room *roomp, **roompp;
     char msgnam[13];
     fs_msg_t msgt;
     struct ll_node *node;
@@ -96,10 +100,28 @@ void *client_handler(void *arg)
     {
         big = 0;
         FD_ZERO(fdsp);
+        while(NULL != rl_client_head && rl_client_head->val == -1)
+        {
+            node = rl_client_head->ne;
+            remove_node(rl_client_head);
+            rl_client_head = node;
+        }
+        if(rl_client_head == NULL)
+            rl_client_tail = NULL;
         for(node = rl_client_head; node != NULL; node = node->ne)
         {
-            big = big < node->val ? node->val : big;
-            FD_SET(node->val, fdsp);
+            if(node->val == -1)
+            {
+                if(node == rl_client_tail)
+                    rl_client_tail = node->pr;
+                node = node->pr;
+                remove_node(node->ne);
+            }
+            else
+            {
+                big = big < node->val ? node->val : big;
+                FD_SET(node->val, fdsp);
+            }
         }
         tv.tv_usec = 0;
         tv.tv_sec = 1;
@@ -113,8 +135,92 @@ void *client_handler(void *arg)
                 switch(msgt)
                 {
                     case UPLOADER:
+                        rnum = next_long();
+                        succ = insert_room(rnum, sock);
+                        if(succ == 0)
+                        {
+                            msgt = ROOMNUM;
+                            succ = PUTOBJ(sock, msgt);
+                            if(succ == -1)
+                            {
+                                remove_room(rnum);
+                                close(sock);
+                            }
+                            else
+                            {
+                                rnumpart = rnum >> 32;
+                                rnumpart = htonl(rnumpart);
+                                PUTOBJ(sock, rnumpart);
+                                rnumpart = rnum;
+                                rnumpart = htonl(rnumpart);
+                                succ = PUTOBJ(sock, rnumpart);
+                                if(succ == -1)
+                                {
+                                    remove_room(rnum);
+                                    close(sock);
+                                }
+                                else
+                                {
+                                    logfmt("Successfully created room %lu, there are now %zu rooms.\n", room_cnt());
+                                    log_endmsg();
+                                }
+                            }
+                        }
+                        else
+                        {
+                            logfmt("Inserting room failed, there are %zu rooms.\n", room_cnt());
+                            log_endmsg();
+                            msgt = QUIT;
+                            PUTOBJ(sock, msgt);
+                            close(sock);
+                        }
+                        node->val = -1;
                         break;
                     case RECEIPIENT:
+                        GETOBJ(sock, msgt);
+                        if(msgt == QUIT)
+                        else if(msgt == ROOMNUM)
+                        {
+                            GETOBJ(sock, rnumpart);
+                            rnumpart = ntohl(rnumpart);
+                            rnum = rnumpart;
+                            rnum <<= 32;
+                            GETOBJ(sock, rnumpart);
+                            rnumpart = ntohl(rnumpart);
+                            rnum |= rnumpart;
+                            roompp = get_room(rnum);
+                            if(roompp == NULL)
+                                msgt = JOINFAIL;
+                            else
+                            {
+                                roomp = *roompp;
+                                succ = join_room(roomp, sock);
+                                if(succ == 0)
+                                {
+                                    logfmt("Room %lu has a new receipient, for a total of %zu.\n", roomp->num, roomp->rccnt);
+                                    log_endmsg();
+                                    msgt = JOINSUCC;
+                                }
+                                else
+                                    msgt = JOINFAIL;
+                                succ = PUTOBJ(sock, msgt);
+                                if(succ == -1)
+                                {
+                                    remove_receipient(roomp, sock);
+                                    close(sock);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            get_msg_name(msgt, msgnam);
+                            logfmt("Invalid message %s, expected ROOMNUM.\n", msgnam);
+                            log_endmsg();
+                            close(sock);
+                        }
+                        node->val = -1;
+                        break;
+                    case QUIT:
                         break;
                     default:
                         get_msg_name(msgt, msgnam);

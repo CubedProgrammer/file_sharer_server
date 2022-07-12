@@ -22,9 +22,11 @@ void *process_room(void *arg);
 int init_rmtable(void);
 int insert_room(uint64_t num, int uploader);
 void remove_room(uint64_t num);
+void remove_receipient(struct share_room *room, int rec);
 int join_room(struct share_room *room, int rec);
 struct share_room **get_room(uint64_t num);
 int init_room(struct share_room *room, int uploader);
 void clear_room(struct share_room *room);
+size_t room_cnt(void);
 
 #endif
