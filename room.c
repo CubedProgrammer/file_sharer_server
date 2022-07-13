@@ -6,6 +6,7 @@
 #include<unistd.h>
 #include"logging.h"
 #include"msg.h"
+#include"queue.h"
 #include"room.h"
 struct room_htable fs_all_rooms;
 
@@ -14,6 +15,7 @@ void *process_room(void *arg)
     struct share_room *roomp = arg;
     logfmt("Room %lu has begun.\n", roomp->num);
     log_endmsg();
+    struct ll_node *node;
     struct timeval tv, *tvp = &tv;
     fd_set fds, *fdsp = &fds;
     size_t shift;
@@ -58,6 +60,7 @@ void *process_room(void *arg)
                         --i;
                         ++shift;
                         close(fd);
+                        fini = 1;
                     }
                     else
                     {
@@ -73,8 +76,10 @@ void *process_room(void *arg)
                 GETOBJ(fd, msgt);
                 switch(msgt)
                 {
-                    case QUIT:
                     case SENDFILE:
+                        break;
+                    case QUIT:
+                        close(fd); 
                     case CLOSEROOM:
                         for(size_t i = 0; i < roomp->rccnt; ++i)
                         {
@@ -85,8 +90,28 @@ void *process_room(void *arg)
                                 logfmt("Writing to socket %d of room %lu failed, errno %d.\n", fd, roomp->num, errno);
                                 log_endmsg();
                             }
+                            close(fd);
                         }
                         roomp->rccnt = 0;
+                        remove_room(roomp->num);
+                        if(msgt == CLOSEROOM)
+                        {
+                            node = make_node(fd, NULL, rl_client_tail);
+                            if(node == NULL)
+                            {
+                                logstr("Could not create node to add client back to waiting list.");
+                                log_endmsg();
+                                close(fd);
+                            }
+                            else if(rl_client_tail == NULL)
+                                rl_client_head = rl_client_tail = node;
+                            else
+                            {
+                                insert_after(rl_client_tail, node);
+                                rl_client_tail = node;
+                            }
+                        }
+                        fini = 1;
                         break;
                     default:
                         get_msg_name(msgt, msgnam);

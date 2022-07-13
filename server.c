@@ -18,9 +18,6 @@
 #define PORT 2203
 #endif
 
-// Roomless clients list
-struct ll_node *volatile rl_client_head, *volatile rl_client_tail;
-
 void *client_accepter(void *arg);
 void *client_handler(void *arg);
 void sigpipe(int x);

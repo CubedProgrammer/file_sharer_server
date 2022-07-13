@@ -1,6 +1,9 @@
 #include<stdlib.h>
 #include"queue.h"
 
+// Roomless clients list
+struct ll_node *volatile rl_client_head, *volatile rl_client_tail;
+
 void remove_node(struct ll_node *n)
 {
     if(n->pr)
