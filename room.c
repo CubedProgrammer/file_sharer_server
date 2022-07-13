@@ -1,16 +1,26 @@
+#include<errno.h>
 #include<stdlib.h>
 #include<string.h>
 #include<sys/select.h>
 #include<time.h>
+#include<unistd.h>
+#include"logging.h"
+#include"msg.h"
 #include"room.h"
 struct room_htable fs_all_rooms;
+
 void *process_room(void *arg)
 {
     struct share_room *roomp = arg;
+    logfmt("Room %lu has begun.\n", roomp->num);
+    log_endmsg();
     struct timeval tv, *tvp = &tv;
     fd_set fds, *fdsp = &fds;
+    size_t shift;
+    fs_msg_t msgt;
+    char msgnam[13];
     int big, fd;
-    int ready;
+    int ready, succ;
     char fini = 0;
     while(!fini)
     {
@@ -26,6 +36,65 @@ void *process_room(void *arg)
         tv.tv_usec = 0;
         tv.tv_usec = 5;
         ready = select(big + 1, fdsp, NULL, NULL, tvp);
+        if(ready < 0)
+        {
+            logfmt("Select failed for room %lu, errno is %d.\n", roomp->num, errno);
+            log_endmsg();
+        }
+        else if(ready)
+        {
+            shift = 0;
+            for(size_t i = 0; i < roomp->rccnt; ++i)
+            {
+                if(shift)
+                    roomp->receivers[i] = roomp->receivers[i + shift];
+                fd = roomp->receivers[i];
+                if(FD_ISSET(fd, fdsp))
+                {
+                    GETOBJ(fd, msgt);
+                    if(msgt == QUIT)
+                    {
+                        --roomp->rccnt;
+                        --i;
+                        ++shift;
+                        close(fd);
+                    }
+                    else
+                    {
+                        get_msg_name(msgt, msgnam);
+                        logfmt("Invalid message %s, only QUIT is allowed for receipients.\n", msgnam);
+                        log_endmsg();
+                    }
+                }
+            }
+            fd = roomp->uploader;
+            if(FD_ISSET(fd, fdsp))
+            {
+                GETOBJ(fd, msgt);
+                switch(msgt)
+                {
+                    case QUIT:
+                    case SENDFILE:
+                    case CLOSEROOM:
+                        for(size_t i = 0; i < roomp->rccnt; ++i)
+                        {
+                            fd = roomp->receivers[i];
+                            succ = PUTOBJ(fd, msgt);
+                            if(succ == -1)
+                            {
+                                logfmt("Writing to socket %d of room %lu failed, errno %d.\n", fd, roomp->num, errno);
+                                log_endmsg();
+                            }
+                        }
+                        roomp->rccnt = 0;
+                        break;
+                    default:
+                        get_msg_name(msgt, msgnam);
+                        logfmt("Invalid message %s, only QUIT, SENDFILE, and CLOSEROOM are allowed.\n", msgnam);
+                        log_endmsg();
+                }
+            }
+        }
     }
     return NULL;
 }

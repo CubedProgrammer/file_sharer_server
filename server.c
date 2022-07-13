@@ -92,6 +92,7 @@ void *client_handler(void *arg)
     int succ;
     uint64_t rnum;
     uint32_t rnumpart;
+    pthread_t pth;
     struct share_room *roomp, **roompp;
     char msgnam[13];
     fs_msg_t msgt;
@@ -163,6 +164,7 @@ void *client_handler(void *arg)
                                 {
                                     logfmt("Successfully created room %lu, there are now %zu rooms.\n", room_cnt());
                                     log_endmsg();
+                                    pthread_create(&pth, NULL, process_room, *get_room(rnum));
                                 }
                             }
                         }
@@ -179,6 +181,11 @@ void *client_handler(void *arg)
                     case RECEIPIENT:
                         GETOBJ(sock, msgt);
                         if(msgt == QUIT)
+                        {
+                            close(sock);
+                            logfmt("Receipient with socket %d quit.\n", sock);
+                            log_endmsg();
+                        }
                         else if(msgt == ROOMNUM)
                         {
                             GETOBJ(sock, rnumpart);
@@ -221,8 +228,12 @@ void *client_handler(void *arg)
                         node->val = -1;
                         break;
                     case QUIT:
+                        close(sock);
+                        logfmt("Receipient on socket %d quit immediately.\n", sock);
+                        log_endmsg();
                         break;
                     default:
+                        close(sock);
                         get_msg_name(msgt, msgnam);
                         logfmt("Invalid message %s, should be UPLOADER or RECEIPIENT.\n", msgnam);
                         log_endmsg();
