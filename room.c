@@ -8,6 +8,7 @@
 #include"msg.h"
 #include"queue.h"
 #include"room.h"
+#include"share.h"
 struct room_htable fs_all_rooms;
 
 void *process_room(void *arg)
@@ -18,7 +19,9 @@ void *process_room(void *arg)
     struct ll_node *node;
     struct timeval tv, *tvp = &tv;
     fd_set fds, *fdsp = &fds;
-    size_t shift;
+    size_t shift, bufsz = 16384;
+    char bufszstr[11];
+    char *bufszstrog; 
     fs_msg_t msgt;
     char msgnam[13];
     int big, fd;
@@ -60,7 +63,6 @@ void *process_room(void *arg)
                         --i;
                         ++shift;
                         close(fd);
-                        fini = 1;
                     }
                     else
                     {
@@ -77,6 +79,22 @@ void *process_room(void *arg)
                 switch(msgt)
                 {
                     case SENDFILE:
+                        bufszstrog = getenv("SHAREBUFSZ");
+                        if(bufszstrog != NULL)
+                        {
+                            strcpy(bufszstr, bufszstrog);
+                            bufsz = strtoul(bufszstr, NULL, 10);
+                        }
+                        share_file(fd, roomp->receivers, roomp->rccnt, bufsz);
+                        shift = 0;
+                        for(size_t i = 0; i < roomp->rccnt; ++i)
+                        {
+                            if(roomp->receivers[i] == -1)
+                                ++shift;
+                            if(shift)
+                                roomp->receivers[i] = roomp->receivers[i + shift];
+                        }
+                        roomp->rccnt -= shift;
                         break;
                     case QUIT:
                         close(fd); 
