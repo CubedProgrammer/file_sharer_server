@@ -37,8 +37,17 @@ int main(int argl, char *argv[])
     init_rand();
     int succ = init_rmtable();
     if(succ == 0)
-        getchar();
-    return succ * -1;
+    {
+        succ = init_logger("logs.txt");
+        if(succ == 0)
+        {
+            pthread_t pth;
+            pthread_create(&pth, NULL, client_accepter, NULL);
+            getchar();
+            free_logger();
+        }
+    }
+   return succ * -1;
 }
 void *client_accepter(void *arg)
 {
