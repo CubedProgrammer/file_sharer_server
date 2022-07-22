@@ -23,7 +23,7 @@ struct room_htable fs_all_rooms;
 void *process_room(void *arg)
 {
     struct share_room *roomp = arg;
-    logfmt("Room %lu has begun.\n", roomp->num);
+    logfmt("Room %lx has begun.\n", roomp->num);
     log_endmsg();
     struct ll_node *node;
     struct timeval tv, *tvp = &tv;
@@ -52,7 +52,7 @@ void *process_room(void *arg)
         ready = select(big + 1, fdsp, NULL, NULL, tvp);
         if(ready < 0)
         {
-            logfmt("Select failed for room %lu, errno is %d.\n", roomp->num, errno);
+            logfmt("Select failed for room %lx, errno is %d.\n", roomp->num, errno);
             log_endmsg();
         }
         else if(ready)
@@ -114,7 +114,7 @@ void *process_room(void *arg)
                             succ = PUTOBJ(fd, msgt);
                             if(succ == -1)
                             {
-                                logfmt("Writing to socket %d of room %lu failed, errno %d.\n", fd, roomp->num, errno);
+                                logfmt("Writing to socket %d of room %lx failed, errno %d.\n", fd, roomp->num, errno);
                                 log_endmsg();
                             }
                             close(fd);

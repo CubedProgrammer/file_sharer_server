@@ -190,7 +190,7 @@ void *client_handler(void *arg)
                                 }
                                 else
                                 {
-                                    logfmt("Successfully created room %lu, there are now %zu rooms.\n", room_cnt());
+                                    logfmt("Successfully created room %lx, there are now %zu rooms.\n", rnum, room_cnt());
                                     log_endmsg();
                                     pthread_create(&pth, NULL, process_room, *get_room(rnum));
                                 }
@@ -236,7 +236,7 @@ void *client_handler(void *arg)
                                 succ = join_room(roomp, sock);
                                 if(succ == 0)
                                 {
-                                    logfmt("Room %lu has a new receipient, for a total of %zu.\n", roomp->num, roomp->rccnt);
+                                    logfmt("Room %lx has a new receipient, for a total of %zu.\n", roomp->num, roomp->rccnt);
                                     msgt = JOINSUCC;
                                 }
                                 else
