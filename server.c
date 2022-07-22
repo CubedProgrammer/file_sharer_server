@@ -76,18 +76,28 @@ void *client_accepter(void *arg)
                     else
                     {
                         node = make_node(cfd, NULL, NULL);
-                        if(rl_client_tail == NULL)
+                        if(node == NULL)
                         {
-                            rl_client_tail = node;
+                            logstr("Memory allocation failed for new client.");
+                            close(cfd);
+                        }
+                        else if(rl_client_tail == NULL)
+                        {
+                            logstr("First client to connect in a while.");
+                            rl_client_head = rl_client_tail = node;
                             pthread_create(&pth, NULL, client_handler, NULL);
                         }
                         else
                         {
+                            logfmt("Client with socket %d joined the queue.\n", cfd);
                             insert_after(rl_client_tail, node);
                             rl_client_tail = rl_client_tail->ne;
                         }
+                        log_endmsg();
                     }
                 }
+                logstr("Stopped accepting clients.");
+                log_endmsg();
             }
             else
                 puts("Socket listening failed");
@@ -148,6 +158,9 @@ void *client_handler(void *arg)
             {
                 sock = node->val;
                 GETOBJ(sock, msgt);
+                get_msg_name(msgt, msgnam);
+                logfmt("Socket %d sent message %s.\n", sock, msgnam);
+                log_endmsg();
                 switch(msgt)
                 {
                     case UPLOADER:
@@ -210,9 +223,13 @@ void *client_handler(void *arg)
                             GETOBJ(sock, rnumpart);
                             rnumpart = ntohl(rnumpart);
                             rnum |= rnumpart;
+                            logfmt("A client attempted to join room %lx.\n", rnum);
                             roompp = get_room(rnum);
                             if(roompp == NULL)
+                            {
+                                logstr("And failed.");
                                 msgt = JOINFAIL;
+                            }
                             else
                             {
                                 roomp = *roompp;
@@ -220,18 +237,18 @@ void *client_handler(void *arg)
                                 if(succ == 0)
                                 {
                                     logfmt("Room %lu has a new receipient, for a total of %zu.\n", roomp->num, roomp->rccnt);
-                                    log_endmsg();
                                     msgt = JOINSUCC;
                                 }
                                 else
                                     msgt = JOINFAIL;
-                                succ = PUTOBJ(sock, msgt);
-                                if(succ == -1)
-                                {
-                                    remove_receipient(roomp, sock);
-                                    close(sock);
-                                }
                             }
+                            succ = PUTOBJ(sock, msgt);
+                            if(succ == -1)
+                            {
+                                remove_receipient(roomp, sock);
+                                close(sock);
+                            }
+                            log_endmsg();
                         }
                         else
                         {
@@ -256,6 +273,8 @@ void *client_handler(void *arg)
             }
         }
     }
+    logstr("No more clients in the queue.");
+    log_endmsg();
     return NULL;
 }
 void sigpipe(int x)

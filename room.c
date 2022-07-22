@@ -273,19 +273,21 @@ struct share_room **get_room(uint64_t num)
 {
     uint64_t hsh = num % fs_all_rooms.bcnt;
     struct share_room **rmp = NULL;
-    if(fs_all_rooms.buckets[hsh]->num == num)
+    if(fs_all_rooms.buckets[hsh] == NULL)
+        rmp = NULL;
+    else if(fs_all_rooms.buckets[hsh]->num == num)
         rmp = fs_all_rooms.buckets + hsh;
     else
     {
         for(size_t ind = hsh + 1; ind != hsh; ++ind)
         {
-            if(fs_all_rooms.buckets[ind]->num == num)
+            if(fs_all_rooms.buckets[ind] == NULL)
+                ind = hsh - 1;
+            else if(fs_all_rooms.buckets[ind]->num == num)
             {
                 rmp = fs_all_rooms.buckets + ind;
                 ind = hsh - 1;
             }
-            else if(fs_all_rooms.buckets[ind] == NULL)
-                ind = hsh - 1;
             if(1 + ind == fs_all_rooms.bcnt)
                 ind = -1;
         }

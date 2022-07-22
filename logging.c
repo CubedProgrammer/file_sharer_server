@@ -29,8 +29,9 @@ void logfmt(const char *fmt, ...)
         time_t curr = time(NULL);
         int daystart = log_start / 86400, daycurr = curr / 86400;
         int secs = curr % 86400;
-        int mins = curr / 60 % 60, hrs = curr / 3600;
-        curr %= 60;
+        int mins = secs / 60 % 60, hrs = secs / 3600;
+        secs %= 60;
+        ++daycurr;
         fprintf(log_fh, "Day %d [%02d:%02d:%02d] ", daycurr - daystart, hrs, mins, secs);
     }
     va_list ls;
