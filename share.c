@@ -11,6 +11,7 @@
 #include<stdlib.h>
 #include<unistd.h>
 #include"logging.h"
+#include"msg.h"
 
 void share_file(int uploader, int *rc, size_t rccnt, size_t bufsz)
 {
@@ -27,10 +28,12 @@ void share_file(int uploader, int *rc, size_t rccnt, size_t bufsz)
         for(size_t i = 0; i < sizeof(fszdat); ++i)
             fsz = (fsz << 8) + fszdat[i];
         bufsz = bufsz < fsz ? bufsz : fsz;
+        char msgt = SENDFILE;
         size_t totbr;
         ssize_t bc;
         for(size_t i = 0; i < rccnt; ++i)
         {
+            PUTOBJ(rc[i], msgt);
             bc = write(rc[i], fszdat, sizeof fszdat);
             if(bc < 0)
             {
