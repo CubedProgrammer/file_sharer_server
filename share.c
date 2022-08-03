@@ -12,6 +12,7 @@
 #include<unistd.h>
 #include"logging.h"
 #include"msg.h"
+#define LOGBYTES bufsz
 
 void share_file(int uploader, int *rc, size_t rccnt, size_t bufsz)
 {
@@ -28,8 +29,10 @@ void share_file(int uploader, int *rc, size_t rccnt, size_t bufsz)
         for(size_t i = 0; i < sizeof(fszdat); ++i)
             fsz = (fsz << 8) + fszdat[i];
         bufsz = bufsz < fsz ? bufsz : fsz;
+        logfmt("Sharing file with %zu bytes.\n", fsz);
+        log_endmsg();
         char msgt = SENDFILE;
-        size_t totbr;
+        size_t totbr, nextlog = LOGBYTES;
         ssize_t bc;
         for(size_t i = 0; i < rccnt; ++i)
         {
@@ -62,6 +65,8 @@ void share_file(int uploader, int *rc, size_t rccnt, size_t bufsz)
                 }
             }
             totbr += br;
+            logfmt("Socket %d uploaded %zu bytes.\n", uploader, totbr);
+            log_endmsg();
         }
         free(buf);
     }

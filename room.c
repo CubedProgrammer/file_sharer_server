@@ -54,6 +54,7 @@ void *process_room(void *arg)
         {
             logfmt("Select failed for room %lx, errno is %d.\n", roomp->num, errno);
             log_endmsg();
+            fini = 1;
         }
         else if(ready)
         {
@@ -66,19 +67,18 @@ void *process_room(void *arg)
                 if(FD_ISSET(fd, fdsp))
                 {
                     GETOBJ(fd, msgt);
-                    if(msgt == QUIT)
-                    {
-                        --roomp->rccnt;
-                        --i;
-                        ++shift;
-                        close(fd);
-                    }
-                    else
+                    if(msgt != QUIT)
                     {
                         get_msg_name(msgt, msgnam);
                         logfmt("Invalid message %s, only QUIT is allowed for receipients.\n", msgnam);
                         log_endmsg();
+                        msgt = QUIT;
+                        PUTOBJ(fd, msgt);
                     }
+                    --roomp->rccnt;
+                    --i;
+                    ++shift;
+                    close(fd);
                 }
             }
             fd = roomp->uploader;
@@ -121,6 +121,7 @@ void *process_room(void *arg)
                         }
                         roomp->rccnt = 0;
                         remove_room(roomp->num);
+                        fd = roomp->uploader;
                         if(msgt == CLOSEROOM)
                         {
                             node = make_node(fd, NULL, rl_client_tail);
@@ -144,6 +145,17 @@ void *process_room(void *arg)
                         get_msg_name(msgt, msgnam);
                         logfmt("Invalid message %s, only QUIT, SENDFILE, and CLOSEROOM are allowed.\n", msgnam);
                         log_endmsg();
+                        msgt = QUIT;
+                        for(size_t i = 0; i < roomp->rccnt; ++i)
+                        {
+                            fd = roomp->receivers[i];
+                            PUTOBJ(fd, msgt);
+                            close(fd);
+                        }
+                        fd = roomp->uploader;
+                        PUTOBJ(fd, msgt);
+                        close(fd);
+                        fini = 1;
                 }
             }
         }
