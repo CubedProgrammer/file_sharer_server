@@ -159,7 +159,7 @@ void *client_handler(void *arg)
                 sock = node->val;
                 GETOBJ(sock, msgt);
                 get_msg_name(msgt, msgnam);
-                logfmt("Socket %d sent message %s.\n", sock, msgnam);
+                logfmt("Rommless client socket %d sent message %s.\n", sock, msgnam);
                 log_endmsg();
                 switch(msgt)
                 {
@@ -263,12 +263,14 @@ void *client_handler(void *arg)
                         close(sock);
                         logfmt("Receipient on socket %d quit immediately.\n", sock);
                         log_endmsg();
+                        node ->val = -1;
                         break;
                     default:
                         close(sock);
                         get_msg_name(msgt, msgnam);
                         logfmt("Invalid message %s, should be UPLOADER or RECEIPIENT.\n", msgnam);
                         log_endmsg();
+                        node ->val = -1;
                 }
             }
         }

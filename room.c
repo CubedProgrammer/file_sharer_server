@@ -8,6 +8,7 @@
 // You should have received a copy of the GNU General Public License along with file_sharer_server. If not, see <https://www.gnu.org/licenses/>. 
 
 #include<errno.h>
+#include<pthread.h>
 #include<stdlib.h>
 #include<string.h>
 #include<sys/select.h>
@@ -18,7 +19,9 @@
 #include"queue.h"
 #include"room.h"
 #include"share.h"
+
 struct room_htable fs_all_rooms;
+void *client_handler(void *arg);
 
 void *process_room(void *arg)
 {
@@ -35,6 +38,7 @@ void *process_room(void *arg)
     char msgnam[13];
     int big, fd;
     int ready, succ;
+    pthread_t pth;
     char fini = 0;
     while(!fini)
     {
@@ -120,10 +124,11 @@ void *process_room(void *arg)
                             close(fd);
                         }
                         roomp->rccnt = 0;
-                        remove_room(roomp->num);
                         fd = roomp->uploader;
                         if(msgt == CLOSEROOM)
                         {
+                            logfmt("Room %lx ordered to be closed.\n", roomp->num);
+                            log_endmsg();
                             node = make_node(fd, NULL, rl_client_tail);
                             if(node == NULL)
                             {
@@ -132,7 +137,10 @@ void *process_room(void *arg)
                                 close(fd);
                             }
                             else if(rl_client_tail == NULL)
+                            {
                                 rl_client_head = rl_client_tail = node;
+                                pthread_create(&pth, NULL, client_handler, NULL);
+                            }
                             else
                             {
                                 insert_after(rl_client_tail, node);
@@ -144,6 +152,7 @@ void *process_room(void *arg)
                     default:
                         get_msg_name(msgt, msgnam);
                         logfmt("Invalid message %s, only QUIT, SENDFILE, and CLOSEROOM are allowed.\n", msgnam);
+                        logfmt("Disconnecting all clients of room %lx.\n", roomp->num);
                         log_endmsg();
                         msgt = QUIT;
                         for(size_t i = 0; i < roomp->rccnt; ++i)
@@ -160,6 +169,9 @@ void *process_room(void *arg)
             }
         }
     }
+    logfmt("Room %lx has ended.\n", roomp->num);
+    log_endmsg();
+    remove_room(roomp->num);
     return NULL;
 }
 
