@@ -263,14 +263,17 @@ void *client_handler(void *arg)
                         close(sock);
                         logfmt("Receipient on socket %d quit immediately.\n", sock);
                         log_endmsg();
-                        node ->val = -1;
+                        node->val = -1;
                         break;
                     default:
-                        close(sock);
                         get_msg_name(msgt, msgnam);
+                        msgt = QUIT;
+                        PUTOBJ(sock, msgt);
+                        close(sock);
                         logfmt("Invalid message %s, should be UPLOADER or RECEIPIENT.\n", msgnam);
+                        logfmt("Client on socket %d has been disconnected.\n", sock);
                         log_endmsg();
-                        node ->val = -1;
+                        node->val = -1;
                 }
             }
         }
